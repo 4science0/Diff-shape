@@ -1,0 +1,33 @@
+# @package _global_
+general:
+    name: 'linker-5cb2'
+
+sample:
+    loading_model: 'Diffshape/model/PointCloudSingle_nstd0.3.ckpt'
+    sdf_path: "data/5cb2/5cb2.sdf"
+    samples_to_generate: 1500
+    potential_ebs: 500
+    resamplings: 2
+    remove_atoms: [0,1,2,3,6,7,8,12,15,17,18,19,20,21,22,    30,31,32,33,34,40,41,42,43,44]
+
+model:
+    noise_std: 0.4
+    control_data_dict: { 'cX': 'cX', 'cE': 'single_mask_None', 'cpos': 'cpos' }
+    guess_mode: true
+    dropout_rate: 0
+
+dataset:
+    name: 'geom'
+    datadir : 'Dataset/geom_drugs/geom_with_h'
+    update_onehot: True
+    conversion_ratio: 0.4
+    remove_h: False
+    random_subset: null
+    pin_memory: False
+    adaptive_loader: True
+    # control_data_dict: { 'cX': 'cX', 'cE': 'cE', 'cpos': 'cpos' }
+    control_data_dict: { 'cX': 'cX', 'cE': 'single_mask_None', 'cpos': 'cpos' }
+    control_add_noise_dict: { 'cX': True, 'cE': True, 'cpos': True}
+#    template_name: 3rlr
+
+
