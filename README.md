@@ -44,6 +44,18 @@ python3 main.py +experiment=example_geom_with_h_adaptive general.test_only='ABS_
 - sample 1z95_ligand.sdf
 
 
+
+
+## Download the trained DiffShape model
+Download the trained DiffShape model from [Google Cloud Drive](https://drive.google.com/drive/folders/1qTRhD-CvgXCE9cvWX5dHEzDxHsPH6Qck), and then place the downloaded .ckpt file in the ```./outputs/model``` folder
+
+## Sampling example
+- sample 1z95_ligand.sdf
+```
+python get_template_encoder.py
+cd ./midi
+python3 main.py +experiment=example_geom_with_h_adaptive general.test_only='ABS_PATH' dataset.template_name=1z95
+```
 ## Inpainting
 You can use the model trained in the Training step as a test model,
 or use the model we have already trained, download it from 
@@ -59,17 +71,3 @@ python3 Diffshape_inpainting.py +experiment=diffshape_inpainting
 ```
 ##Sampling example
 - sample 5cb2.sdf
-
-
-
-## Download the trained DiffShape model
-Download the trained DiffShape model from [Google Cloud Drive](https://drive.google.com/drive/folders/1qTRhD-CvgXCE9cvWX5dHEzDxHsPH6Qck), and then place the downloaded .ckpt file in the ```./outputs/model``` folder
-
-## Sampling example
-- sample 1z95_ligand.sdf
-```
-python get_template_encoder.py
-cd ./midi
-python3 main.py +experiment=example_geom_with_h_adaptive general.test_only='ABS_PATH' dataset.template_name=1z95
-```
-
