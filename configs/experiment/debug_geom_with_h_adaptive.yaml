@@ -1,0 +1,58 @@
+# @package _global_
+general:
+    name : 'debug_train_geom_with_h_adaptive'
+    gpus : 1
+    wandb: 'disabled'
+    evaluate_all_checkpoints: False
+    num_final_sampling: 1
+    check_val_every_n_epochs: 1
+    sample_every_val: 1
+    samples_to_generate: 2
+#    test_only: "training model checkpoints path /train_geom_with_h_adaptive_cXn_NoneEn_cposn_std0.2/epoch=59.ckpt"
+#    sample_type: "separate_no_while"
+    filter_substructure: True
+
+train:
+    n_epochs: 60
+    batch_size: 30
+    reference_batch_size: 115
+    save_model: True
+    lr: 0.0002
+    progress_bar: False
+model:
+    n_layers: 12
+    lambda_train: [ 3, 0.4, 1, 2, 0 ]
+    hidden_mlp_dims: { 'X': 256, 'E': 64, 'y': 256, 'pos': 64 }
+    hidden_dims: { 'dx': 256, 'de': 64, 'dy': 128, 'n_head': 8, 'dim_ffX': 256, 'dim_ffE': 64, 'dim_ffy': 256 }
+    nu:
+      p: 2
+      x: 1
+      c: 1
+      e: 1.5
+      y: 1
+    condition_control: True
+    only_last_control: False
+    features_layer_control: None
+    pretrained_model_path: 'model/geom_h_adaptive_chekpoint.ckpt'
+    guess_mode: True
+    strength: 1
+    unconditional_guidance_scale: 9
+    add_gru_output_model: False
+    dropout_rate: 0
+    noise_std: 0.2
+
+dataset:
+    name: 'geom'
+    datadir: 'Dataset/geom_drugs/geom_with_h'
+    remove_h: False
+    random_subset: null
+    pin_memory: False
+    adaptive_loader: True
+    control_data_dict: { 'cX': 'cX', 'cE': 'None', 'cpos': 'cpos' }
+    control_add_noise_dict: { 'cX': True, 'cE': True, 'cpos': True}
+    #    template_name: 1z95
+
+
+
+
+
