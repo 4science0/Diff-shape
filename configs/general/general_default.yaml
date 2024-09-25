@@ -1,0 +1,29 @@
+# General settings
+name: 'graph-tf-model'                   # Warning: 'debug' and 'test' are reserved name that have a special behavior
+
+wandb: 'online'                # online | offline | disabled
+gpus: 1                     # Multi-gpu is currently not implemented
+
+resume: null            # If resume, path to ckpt file from outputs directory in main directory
+test_only: null         # Use absolute path
+resume_id: null
+
+check_val_every_n_epochs: 5
+sample_every_val: 2 #val 进行sample的频率
+val_check_interval: null
+samples_to_generate: 20 #每个template sample的个数
+samples_to_save: 20
+chains_to_save: 3  #val 保留前n个
+log_every_steps: 50
+
+faster_sampling: 1                              # At each sampling step, set s=t-faster sampling (1 for normal sampling)
+
+cpus_per_gpu: 4
+force_ray: false
+
+evaluate_all_checkpoints: False
+num_final_sampling: 5
+val_template_num: 20
+test_template_num: 20
+sample_type: mixed_sample #mixed_sample or separate_no_while or separate_while
+filter_substructure: False
