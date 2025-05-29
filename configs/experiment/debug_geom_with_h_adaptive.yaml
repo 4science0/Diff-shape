@@ -33,7 +33,7 @@ model:
     condition_control: True
     only_last_control: False
     features_layer_control: None
-    pretrained_model_path: 'model/geom_h_adaptive_chekpoint.ckpt'
+    pretrained_model_path: '/DiffShape/outputs/model/geom_h_adaptive_chekpoint.ckpt'
     guess_mode: True
     strength: 1
     unconditional_guidance_scale: 9
@@ -43,7 +43,7 @@ model:
 
 dataset:
     name: 'geom'
-    datadir: 'Dataset/geom_drugs/geom_with_h'
+    datadir: '/data/geom_drug_data/geom_with_h'
     remove_h: False
     random_subset: null
     pin_memory: False

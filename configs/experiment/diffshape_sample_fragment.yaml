@@ -1,0 +1,33 @@
+# @package _global_
+general:
+    name: 'linker-5cb2'
+
+sample:
+    loading_model: '/checkpoints/PointCloudSingle_nstd0.3.ckpt'
+    sdf_path: /data/5cb2/5cb2.sdf
+    samples_to_generate: 50
+    potential_ebs: 500
+    resamplings: 1
+    change_atom_idx: [0,1,2,3,6,7,8,12,15,17,18,19,20,21,22,    30,31,32,33,34,40,41,42,43,44]
+    output_dir: diffshape_sample_results
+    statistics_path: /data/geom_with_h/processed
+    # This is the statistical distribution information in the drugs dataset. You can replace it with your own
+
+
+model:
+    guess_mode: true
+    diffusion_steps: 500
+    # The following 3 parameters should be consistent with the training settings corresponding to the loading_model (control the degree of blurriness of information)
+    noise_std: 0.4
+    control_data_dict: { 'cX': 'cX', 'cE': 'single_mask_None', 'cpos': 'cpos' }
+    dropout_rate: 0
+
+
+
+    
+
+
+
+
+
+

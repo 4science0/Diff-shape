@@ -29,7 +29,7 @@ from midi.metrics.molecular_metrics import filter_substructure
 from midi.metrics.train_metrics import TrainLoss
 
 from midi.utils import PlaceHolder
-
+from tqdm import tqdm
 from rdkit.Chem import QED
 from typing import Union
 
@@ -83,11 +83,11 @@ class FullDenoisingDiffusion(pl.LightningModule):
     train_iterations = None
     val_iterations = None
 
-    def __init__(self, cfg, dataset_infos, train_smiles, val_template=None, test_template=None, test_smiles=None):
+    def __init__(self, cfg, dataset_infos, train_smiles=None, val_template=None, test_template=None, test_smiles=None):
         super().__init__()
         nodes_dist = dataset_infos.nodes_dist
         self.filter_smarts = [Chem.MolFromSmarts(subst) for subst in filter_substructure if Chem.MolFromSmarts(subst)]
-        self.filter = cfg.general.filter_substructure
+        self.filter = True
         self.cfg = cfg
         self.name = cfg.general.name
         self.T = cfg.model.diffusion_steps
@@ -112,23 +112,24 @@ class FullDenoisingDiffusion(pl.LightningModule):
         self.output_dims = dataset_infos.output_dims
         # self.domain_features = ExtraMolecularFeatures(dataset_infos=dataset_infos)
 
-        # Train metrics
-        self.train_loss = TrainLoss(lambda_train=self.cfg.model.lambda_train
-                                     if hasattr(self.cfg.model, "lambda_train") else self.cfg.train.lambda0)
-        self.train_metrics = TrainMolecularMetrics(dataset_infos)
+        if train_smiles:
+            # Train metrics
+            self.train_loss = TrainLoss(lambda_train=self.cfg.model.lambda_train
+                                        if hasattr(self.cfg.model, "lambda_train") else self.cfg.train.lambda0)
+            self.train_metrics = TrainMolecularMetrics(dataset_infos)
 
-        # Val Metrics
-        self.val_metrics = torchmetrics.MetricCollection([custom_metrics.PosMSE(), custom_metrics.XKl(),
-                                                          custom_metrics.ChargesKl(), custom_metrics.EKl()])
-        self.val_nll = NLL()
-        self.val_sampling_metrics = SamplingMetrics(train_smiles, dataset_infos, test=False, template=self.val_template, test_smiles=test_smiles, filter=self.filter)
+            # Val Metrics
+            self.val_metrics = torchmetrics.MetricCollection([custom_metrics.PosMSE(), custom_metrics.XKl(),
+                                                            custom_metrics.ChargesKl(), custom_metrics.EKl()])
+            self.val_nll = NLL()
+            self.val_sampling_metrics = SamplingMetrics(train_smiles, dataset_infos, test=False, template=self.val_template, test_smiles=test_smiles)
 
-        # Test metrics
-        self.test_metrics = torchmetrics.MetricCollection([custom_metrics.PosMSE(), custom_metrics.XKl(),
-                                                           custom_metrics.ChargesKl(), custom_metrics.EKl()])
-        self.test_nll = NLL()
-        self.test_sampling_metrics = SamplingMetrics(train_smiles, dataset_infos, test=True, template=self.test_template,
-                                                     template_name=self.template_name, test_smiles=test_smiles, filter=self.filter)
+            # Test metrics
+            self.test_metrics = torchmetrics.MetricCollection([custom_metrics.PosMSE(), custom_metrics.XKl(),
+                                                            custom_metrics.ChargesKl(), custom_metrics.EKl()])
+            self.test_nll = NLL()
+            self.test_sampling_metrics = SamplingMetrics(train_smiles, dataset_infos, test=True, template=self.test_template,
+                                                        template_name=self.template_name, test_smiles=test_smiles)
 
         self.save_hyperparameters(ignore=['train_metrics', 'val_sampling_metrics', 'test_sampling_metrics',
                                           'dataset_infos', 'train_smiles'])
@@ -483,7 +484,7 @@ class FullDenoisingDiffusion(pl.LightningModule):
         # n_max = z_T.X.size(1)
         z_t = z_T
         # Iteratively sample p(z_s | z_t) for t = 1, ..., T, with s = t - 1.
-        for s_int in reversed(range(0, self.T, 1 if test else self.cfg.general.faster_sampling)):
+        for s_int in tqdm(reversed(range(0, self.T, 1 if test else self.cfg.general.faster_sampling)), desc="Denoising", total=self.T):
             s_array = s_int * torch.ones((batch_size, 1), dtype=torch.long, device=z_t.X.device)
 
             z_s = self.sample_zs_from_zt(z_t=z_t, s_int=s_array)
@@ -502,11 +503,33 @@ class FullDenoisingDiffusion(pl.LightningModule):
             charge_vec = charges[i, :n]
             edge_types = E[i, :n, :n]
             conformer = pos[i, :n]
-            template_idx = idx[i]
-            molecule_list.append(Molecule(atom_types=atom_types, charges=charge_vec,
-                                          bond_types=edge_types, positions=conformer,
-                                          atom_decoder=self.dataset_infos.atom_decoder,
-                                          template_idx=template_idx))
+            # template_idx = idx[i]
+            # molecule_list.append(Molecule(atom_types=atom_types, charges=charge_vec,
+            #                               bond_types=edge_types, positions=conformer,
+            #                               atom_decoder=self.dataset_infos.atom_decoder,
+            #                               template_idx=template_idx))
+            try:
+                template_idx = idx[i]
+                molecule_list.append(
+                    Molecule(
+                        atom_types=atom_types,
+                        charges=charge_vec,
+                        bond_types=edge_types,
+                        positions=conformer,
+                        atom_decoder=self.dataset_infos.atom_decoder,
+                        template_idx=template_idx
+                    )
+                )
+            except:
+                molecule_list.append(
+                    Molecule(
+                        atom_types=atom_types,
+                        charges=charge_vec,
+                        bond_types=edge_types,
+                        positions=conformer,
+                        atom_decoder=self.dataset_infos.atom_decoder
+                    )
+                )
 
         return molecule_list
 
@@ -553,8 +576,8 @@ class FullDenoisingDiffusion(pl.LightningModule):
   
 
         # Iteratively sample p(z_s | z_t) for t = 1, ..., T, with s = t - 1.
-        for s_int in reversed(range(0, self.T, 1)):
-            print(f'The {s_int} step diffusion' )
+        print('sampling......')
+        for s_int in tqdm(reversed(range(0, self.T, 1)), desc="Denoising", total=self.T):
             for u in range(resamplings):
 
                 s_array = s_int * torch.ones((batch_size, 1), dtype=torch.long, device=z_t.X.device)

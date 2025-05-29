@@ -2,22 +2,20 @@ import torch
 from rdkit import Chem
 from torch_geometric.data.batch import Batch
 from torch_geometric.loader import DataLoader
-import torch.nn.functional as F
 import itertools
 from rdkit.Chem import QED 
 import os
-import utils
-from metrics.molecular_metrics import filter_substructure
-from datasets.dataset_utils import mol_to_torch_geometric
-from datasets import geom_dataset
-from datasets.geom_dataset import full_atom_encoder
-from diffusion_model import FullDenoisingDiffusion
-from analysis.rdkit_functions import Molecule
+import midi.utils as utils
+from midi.metrics.molecular_metrics import filter_substructure
+from midi.datasets.dataset_utils import mol_to_torch_geometric, MolInfos
+from midi.datasets.geom_dataset import full_atom_encoder
+from midi.diffusion_model import FullDenoisingDiffusion
+from midi.analysis.rdkit_functions import Molecule
 import hydra
 import omegaconf
 from collections import Counter
 import copy
-import json
+
 
 def data_from_sdf(sdf_path, remove_atoms, control_data_dict):
     rdmol = Chem.SDMolSupplier(sdf_path, removeHs=False)
@@ -113,18 +111,12 @@ def write_sdf_file(out_path, sample_template_mol, samples):
                 f.write(mol)
     if len(all_invalid_mols) > 0:
         directory_path, filename = os.path.split(out_path)
-        new_file_path = os.path.join(directory_path, 'invalid_'+filename)
+        new_file_path = os.path.join(directory_path, 'SynHard_'+filename)
         with Chem.SDWriter(new_file_path)as f:
             f.write(sample_template_mol)
             for mol in all_invalid_mols:
                 f.write(mol)
-    if len(Decentralized_mols) > 0:
-        directory_path, filename = os.path.split(out_path)
-        new_file_path = os.path.join(directory_path, 'decentralized_'+filename)
-        with Chem.SDWriter(new_file_path)as f:
-            f.write(sample_template_mol)
-            for mol in Decentralized_mols:
-                f.write(mol)
+
     
 
 
@@ -153,28 +145,34 @@ def inpaint_mol(remove_atoms, model, sdf_path, control_data_dict, samples_to_gen
     
     
 
-@hydra.main(version_base='1.3', config_path='../configs', config_name='config')
+@hydra.main(
+    version_base='1.3',
+    config_path="../configs/experiment",  # 指向包含 YAML 的目录
+    config_name="diffshape_sample_fragment"      # 不带 .yaml 后缀的文件名
+)
 def main(cfg: omegaconf.DictConfig):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     # Load model
-    datamodule = geom_dataset.GeomDataModule(cfg)
-    train_smiles = list(datamodule.train_dataloader().dataset.smiles)
-    dataset_infos = geom_dataset.GeomInfos(datamodule=datamodule, cfg=cfg)
-    model = FullDenoisingDiffusion.load_from_checkpoint(checkpoint_path=cfg.sample.loading_model, map_location={'cuda:1': 'cuda:0'}, 
-                                                        dataset_infos=dataset_infos, train_smiles=train_smiles)
+    dataset_infos = MolInfos(statistics_path=cfg.sample.statistics_path, atom_encoder=full_atom_encoder)
+    model = FullDenoisingDiffusion.load_from_checkpoint(checkpoint_path=cfg.sample.loading_model, map_location={'cuda:1': 'cuda:0'}, dataset_infos=dataset_infos)
+    model.T = cfg.model.diffusion_steps
     model = model.to(device)
 
-    template_mol, molecules = inpaint_mol(cfg.sample.remove_atoms, model, cfg.sample.sdf_path, control_data_dict=cfg.model.control_data_dict, samples_to_generate=cfg.sample.samples_to_generate,
+    template_mol, molecules = inpaint_mol(cfg.sample.change_atom_idx, model, cfg.sample.sdf_path, control_data_dict=cfg.model.control_data_dict, samples_to_generate=cfg.sample.samples_to_generate,
                             potential_ebs=cfg.sample.potential_ebs, device=device, resamplings=cfg.sample.resamplings)
     
     # Make SDF files
-    current_path = os.getcwd()
-    result_dir = 'sample'
-    result_path = os.path.join(current_path, f"{result_dir}/")
+    out_path = cfg.sample.output_dir
+    if os.path.splitext(out_path)[1]:
+        raise ValueError(f"Expected a directory path, but got a file path: {out_path}")
+    
+    result_dir = 'based_motif_shape'
+    result_path = os.path.join(out_path, f"{result_dir}/")
     os.makedirs(result_path, exist_ok=True)
-    out_path = os.path.join(result_path, 'diffshape-'+ os.path.basename(cfg.sample.sdf_path))
+    out_path = os.path.join(result_path, f'{os.path.splitext(os.path.basename(cfg.sample.sdf_path))[0]}_motif_gen_mols.sdf')
     write_sdf_file(out_path, template_mol, molecules)
+    print(f"\n=== The sample results have been saved to: {out_path} ===")
     
 
 if __name__ == "__main__":

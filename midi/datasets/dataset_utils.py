@@ -2,9 +2,13 @@ import pickle
 import numpy as np
 from rdkit import Chem
 import torch
+import os
 from torch_geometric.data import Data
 from torch_geometric.utils import subgraph
-
+# from midi.datasets import utils
+from midi.diffusion.distributions import DistributionNodes
+from midi.utils import PlaceHolder
+import torch.nn.functional as F
 
 def mol_to_torch_geometric(mol, atom_encoder, smiles):
     adj = torch.from_numpy(Chem.rdmolops.GetAdjacencyMatrix(mol, useBO=True))
@@ -95,3 +99,52 @@ class Statistics:
         self.valencies = valencies
         self.bond_lengths = bond_lengths
         self.bond_angles = bond_angles
+
+class MolInfos():
+    def __init__(self, statistics_path, atom_encoder):
+        self.atom_decoder = [key for key in atom_encoder.keys()]
+        self.num_atom_types = len(self.atom_decoder)
+
+        statistics = Statistics(num_nodes=load_pickle(os.path.join(statistics_path, 'train_n_h.pickle')),
+                                                atom_types=torch.from_numpy(np.load(os.path.join(statistics_path, 'train_atom_types_h.npy'))),
+                                                bond_types=torch.from_numpy(np.load(os.path.join(statistics_path, 'train_bond_types_h.npy'))),
+                                                charge_types=torch.from_numpy(np.load(os.path.join(statistics_path, 'train_charges_h.npy'))),
+                                                valencies=load_pickle(os.path.join(statistics_path, 'train_valency_h.pickle')),
+                                                bond_lengths=load_pickle(os.path.join(statistics_path, 'train_bond_lengths_h.pickle')),
+                                                bond_angles=torch.from_numpy(np.load(os.path.join(statistics_path, 'train_angles_h.npy'))))
+        
+        train_n_nodes = load_pickle(os.path.join(statistics_path, 'train_n_h.pickle'))
+        val_n_nodes = load_pickle(os.path.join(statistics_path, 'val_n_h.pickle'))
+        test_n_nodes = load_pickle(os.path.join(statistics_path, 'test_n_h.pickle'))
+        max_n_nodes = max(max(train_n_nodes.keys()), max(val_n_nodes.keys()), max(test_n_nodes.keys()))
+        n_nodes = torch.zeros(max_n_nodes + 1, dtype=torch.long)
+        for c in [train_n_nodes, val_n_nodes, test_n_nodes]:
+            for key, value in c.items():
+                n_nodes[key] += value
+
+
+        self.statistics = statistics
+        self.n_nodes = n_nodes / n_nodes.sum()
+        self.atom_types = statistics.atom_types
+        self.edge_types = statistics.bond_types
+        self.charges_types = statistics.charge_types
+        self.charges_marginals = (self.charges_types * self.atom_types[:, None]).sum(dim=0)
+        self.valency_distribution = statistics.valencies
+        self.max_n_nodes = len(n_nodes) - 1
+        self.nodes_dist = DistributionNodes(n_nodes)
+
+        self.input_dims = PlaceHolder(X=self.num_atom_types, charges=6, E=5, y=1, pos=3)
+        self.output_dims = PlaceHolder(X=self.num_atom_types, charges=6, E=5, y=0, pos=3)
+        self.collapse_charges = torch.Tensor([-2, -1, 0, 1, 2, 3]).int()
+
+    def to_one_hot(self, X, charges, E, node_mask, X_sup = None, just_control=False):
+        x = X.clone()
+        X = F.one_hot(X, num_classes=self.num_atom_types).float()
+        E = F.one_hot(E, num_classes=5).float()
+        charges = F.one_hot(charges + 2, num_classes=6).float()
+        placeholder = PlaceHolder(X=X, charges=charges, E=E,  y=None, pos=None)
+        pl = placeholder.mask(node_mask, just_control)
+        return pl.X, pl.charges, pl.E
+
+    def one_hot_charges(self, charges):
+        return F.one_hot((charges + 2).long(), num_classes=6).float()

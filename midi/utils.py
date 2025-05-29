@@ -24,6 +24,16 @@ def zero_module(module):
         p.detach().zero_()
     return module
 
+def to_one_hot(X, charges, E, node_mask, just_control=False):
+    num_atom_types = 16
+    x = X.clone()
+    X = F.one_hot(X, num_classes=num_atom_types).float()
+    E = F.one_hot(E, num_classes=5).float()
+    charges = F.one_hot(charges + 2, num_classes=6).float()
+    placeholder = PlaceHolder(X=X, charges=charges, E=E,  y=None, pos=None)
+    pl = placeholder
+    return pl.X, pl.charges, pl.E
+
 class NoSyncMetricCollection(MetricCollection):
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs) #disabling syncs since it messes up DDP sub-batching
@@ -74,7 +84,11 @@ def to_dense(data, dataset_info, device=None):
     max_num_nodes = X.size(1)
     edge_index, edge_attr = remove_self_loops(data.edge_index, data.edge_attr)
     E = to_dense_adj(edge_index=edge_index, batch=data.batch, edge_attr=edge_attr, max_num_nodes=max_num_nodes)#torch.Size([64, 17, 17])
-    X, charges, E = dataset_info.to_one_hot(X, charges=charges, E=E, node_mask=node_mask)
+    if dataset_info is not None:
+        X, charges, E = dataset_info.to_one_hot(X, charges=charges, E=E, node_mask=node_mask)
+    else:
+        X, charges, E = to_one_hot(X, charges=charges, E=E, node_mask=node_mask)
+    
 
     cX, _ = to_dense_batch(x=data.cx, batch=data.batch)
     ccharges, _ = to_dense_batch(x=data.ccharges, batch=data.batch)
@@ -82,7 +96,12 @@ def to_dense(data, dataset_info, device=None):
     cE = to_dense_adj(edge_index=cedge_index, batch=data.batch, edge_attr=cedge_attr, max_num_nodes=max_num_nodes)
     cpos, _ = to_dense_batch(x=data.pos, batch=data.batch)
     cpos = cpos.float()
-    cX, ccharges, cE = dataset_info.to_one_hot(cX, charges=ccharges, E=cE, node_mask=node_mask, just_control=True)
+
+
+    if dataset_info is not None:
+        cX, ccharges, cE = dataset_info.to_one_hot(X=cX, charges=ccharges, E=cE, node_mask=node_mask, just_control=True)
+    else:
+        cX, ccharges, cE = to_one_hot(X=cX, charges=ccharges, E=cE, node_mask=node_mask, just_control=True)
 
     y = X.new_zeros((X.shape[0], 0))
     cy = cX.new_zeros((cX.shape[0], 0))

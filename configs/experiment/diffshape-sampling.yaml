@@ -1,0 +1,30 @@
+# @package _global_
+general:
+    name: 'sample-1z95' 
+
+sample:
+    loading_model: '/checkpoints/AtomFuzz_nstd0.3.ckpt'
+    sdf_path: /data/1z95/1z95_ligand.sdf     # Replace with your own sdf path
+    samples_to_generate: 10
+    potential_ebs: 200
+    statistics_path: /data/geom_with_h/processed
+    output_dir: diffshape_sample_results
+    # This is the statistical distribution information in the drugs dataset. You can replace it with your own
+
+model:
+    guess_mode: true
+    diffusion_steps: 500
+    # The following 3 parameters should be consistent with the training settings corresponding to the loading_model (control the degree of blurriness of information)
+    noise_std: 0.3
+    control_data_dict: { 'cX': 'cX', 'cE': 'E', 'cpos': 'cpos' }
+    dropout_rate: 0
+
+
+
+    
+
+
+
+
+
+
