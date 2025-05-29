@@ -8,7 +8,7 @@
 
 ## 📦 Conda Environment Dependencies
 
-## Optimized Dependency List (No pip/conda syntax)
+## Optimized Dependency List
 
 - cudatoolkit == 11.8.0
 - pytorch == 2.0.1
