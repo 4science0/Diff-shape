@@ -1,6 +1,10 @@
 # [Diff-Shape](https://chemrxiv.org/engage/chemrxiv/article-details/662f19a121291e5d1dfb745b): Shape Constrained 3D Structure Generation Through Novel Graph Controlled Diffusion Model 
 
----
+
+<p align="center">
+  <img src="assets/linker-5CB2.gif" width="400">
+  <img src="assets/linker-5cb2.png" width="400">
+</p>
 
 ## 📦 Conda Environment Dependencies
 
@@ -100,6 +104,10 @@ Replace `ABS_PATH` with the absolute path of the model checkpoint.
 
 ## 🧬 Sampling Example
 
+<p align="left">
+  <img src="assets/normal-sampling.gif" width="400">
+</p>
+
 To perform shape-based molecule generation conditioned on a template molecule (e.g., `1z95_ligand.sdf`), you can choose one of the following two approaches:
 
 ### 1. Sampling via the Training/Testing Pipeline
@@ -136,6 +144,11 @@ Make sure to set the correct `statistics_path` in your `diffshape-sampling.yaml`
 Refer to `get_template_encoder.py` for details on how shape constraints are extracted from a given SDF template molecule.
 
 ## 🌍 Inpainting (Sampling under Dual Control: Substructure Fixing + Shape Constraints)
+
+<p align="center">
+  <img src="assets/Rgroup-CID_56848121.gif" width="400">
+  <img src="assets/Rgroup-CID_67260295.gif" width="400">
+</p>
 
 Inpainting allows you to design novel molecules around fixed substructures and shape-constraint, supporting tasks such as scaffold hopping, fragment linking, and fragment elaboration. You can either use your own trained model from the training step, or download our pre-trained model from the following link:
 
